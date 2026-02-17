@@ -195,10 +195,8 @@ Metricbeat is the Elastic-native agent for **system metrics** and **Prometheus-s
 git clone https://github.com/Ghazimabrouki/PFE-17-02-2026/
 cd PFE-17-02-2026
 
-```bash
 chmod +x *.sh
 
-```bash
 sudo ./setup_script.sh
 ```
 
