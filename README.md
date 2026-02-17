@@ -39,17 +39,17 @@ If your system doesn't meet these requirements, the script will issue a warning 
 1. Clone this repository to your local machine:
 
    ```bash
-   git clone https://github.com/Ghazimabrouki/PFE-16-02-2026-V2/
+   git clone https://github.com/Ghazimabrouki/PFE-17-02-2026/
    ```
 
 2. Navigate to the repository's directory:
    ```bash
-   cd PFE-16-02-2026-V2
+   cd PFE-17-02-2026
    ```
 
 3. Make the setup_script.sh executable:
    ```bash
-   chmod +x setup_script.sh
+   chmod +x *.sh
    ```
 
 4. Execute the setup_script.sh:
