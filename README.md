@@ -292,6 +292,7 @@ flowchart TB
 ```
 
 
+
 ## Components
 
 ### 1) SIEM Stack (Elasticsearch + Kibana + Filebeat)
@@ -686,6 +687,134 @@ If not set, scripts attempt to parse:
 `/etc/filebeat/filebeat.yml` (`output.elasticsearch.*`).
 
 ---
+
+flowchart LR
+  %% =========================================================
+  %% COMPLETE SOC PLATFORM — ALL-IN-ONE (Installer + Runtime + Data Flow)
+  %% =========================================================
+
+  %% -------------------------
+  %% External actors / inputs
+  %% -------------------------
+  subgraph EXT["External Systems / Users"]
+    B["SOC Analyst (Browser) → https://HOST:5601"]
+    A["Wazuh Agents (endpoints) → TCP 1514/1515"]
+    APP["Apps / Services instrumented with OTel SDK → OTLP 4317/4318"]
+  end
+
+  %% -------------------------
+  %% Installer orchestration
+  %% -------------------------
+  subgraph INSTALL["Automated Installer (dependency order)"]
+    direction TB
+    SS["setup_script.sh (prompts per component) installs Docker/Compose if needed"]
+    STEP1["1) siem_setup.sh Elastic+Kibana+Filebeat 7.17.13 TLS + xpack.security"]
+    STEP2["2) suricata_setup.sh Interface auto-detect Suricata + filebeat module"]
+    STEP3["3) wazuh_setup.sh Wazuh Manager 4.5.4-1 Wazuh Filebeat module + Kibana plugin"]
+    STEP4["4) falco_setup.sh Docker: Falco + Falcosidekick"]
+    STEP5["5) otel_setup.sh (patched) Docker: OTel Collector (logs+traces export)"]
+    STEP6["6) machine_metrics_setup.sh Metricbeat (system metrics) Dashboards best-effort"]
+
+    SS -->|"run"| STEP1 --> STEP2 --> STEP3 --> STEP4 --> STEP5 --> STEP6
+  end
+
+  %% -------------------------
+  %% SOC Host: SIEM core
+  %% -------------------------
+  subgraph HOST["Single Ubuntu Host (All components on one machine)"]
+    direction LR
+
+    %% ---- SIEM foundation ----
+    subgraph SIEM["SIEM Core (systemd)"]
+      direction TB
+      ES["Elasticsearch 7.17.13 HTTPS :9200 /etc/elasticsearch/* /etc/elasticsearch/certs/*"]
+      KB["Kibana 7.17.13 HTTPS :5601 /etc/kibana/kibana.yml /etc/kibana/certs/* (+ Wazuh plugin)"]
+      FB["Filebeat 7.17.13 /etc/filebeat/filebeat.yml /etc/filebeat/modules.d/* /etc/filebeat/certs/*"]
+      KB -->|"https (xpack security)"| ES
+    end
+
+    %% ---- Detection layer ----
+    subgraph DETECT["Detection Layer"]
+      direction TB
+      SUR["Suricata (NIDS) /etc/suricata/suricata.yaml writes: /var/log/suricata/eve.json (monitors active IFACE)"]
+      WZ["Wazuh Manager 4.5.4-1 (HIDS) TCP 1514 (events) TCP 1515 (registration) /var/ossec/*"]
+    end
+
+    %% ---- Runtime security (Docker) ----
+    subgraph RUNTIME["Runtime Security (Docker)"]
+      direction TB
+      FALCO["Falco (privileged) json_output + http_output sends → http://falcosidekick:2801/ /opt/falco/docker-compose.yml"]
+      FSK["Falcosidekick HTTP :2801 ELASTICSEARCH_INDEX=falco-events /opt/falco/docker-compose.yml"]
+      FALCO -->|"HTTP events"| FSK
+    end
+
+    %% ---- Observability (Docker) ----
+    subgraph OBS["Observability (Docker)"]
+      direction TB
+      OTEL["OpenTelemetry Collector (contrib 0.91.0) network_mode=host OTLP gRPC :4317 OTLP HTTP :4318 Health :13133 /opt/otel/.env /opt/otel/otel-collector-config.yaml /opt/otel/docker-compose.yml Exports: otel-logs, otel-traces"]
+      OTEL_METRICS["Optional / if enabled in config: Prometheus metrics endpoint :8888 (+ zPages :55679)"]
+      OTEL -. "optional metrics endpoint" .-> OTEL_METRICS
+    end
+
+    %% ---- Metrics shipping (systemd) ----
+    subgraph METRICS["Infrastructure Metrics (systemd)"]
+      direction TB
+      MB["Metricbeat /etc/metricbeat/metricbeat.yml /etc/metricbeat/modules.d/system.yml system metricsets: cpu/mem/disk/net/proc... Loads dashboards (best-effort)"]
+      MBPROM["Optional: Metricbeat Prometheus module scrape localhost:8888/metrics"]
+      MBPROM -. "scrape" .-> OTEL_METRICS
+      MB -. "optional module" .-> MBPROM
+    end
+
+    %% -------------------------
+    %% Backend target resolution (Falco/OTel)
+    %% -------------------------
+    RESOLVE{"Backend resolution (Falco/OTel) 1) OPENSEARCH_* or ES_* 2) else parse /etc/filebeat/filebeat.yml (output.elasticsearch.*)"}
+  end
+
+  %% -------------------------
+  %% Data flow into Elasticsearch indices
+  %% -------------------------
+  subgraph DATA["Elasticsearch Indices / Patterns"]
+    direction TB
+    IDX_FB["filebeat-* (system logs + Suricata) Discover filter: event.dataset: suricata.eve"]
+    IDX_WZ["wazuh-alerts-* Discover filter: agent.type: wazuh"]
+    IDX_FAL["falco-events-* (runtime detections)"]
+    IDX_OTL["otel-logs-* (logs)"]
+    IDX_OTT["otel-traces-* (traces)"]
+    IDX_MB["metricbeat-* Discover filter: event.module: system"]
+  end
+
+  %% -------------------------
+  %% External connections
+  %% -------------------------
+  B -->|"5601/HTTPS"| KB
+  A -->|"1514/1515 TCP"| WZ
+  APP -->|"OTLP 4317/4318"| OTEL
+
+  %% -------------------------
+  %% Internal data pipelines
+  %% -------------------------
+  SUR -->|"eve.json"| FB
+  WZ -->|"alerts via Filebeat wazuh module"| FB
+
+  FB -->|"ships logs"| ES
+  MB -->|"ships metrics"| ES
+
+  %% Falco/OTel use resolved backend (Elastic/OpenSearch compatible)
+  FSK -->|"bulk ingest falco-events-*"| RESOLVE
+  OTEL -->|"export logs+traces otel-logs / otel-traces"| RESOLVE
+  RESOLVE -->|"HTTPS :9200"| ES
+
+  %% -------------------------
+  %% Index mapping (conceptual)
+  %% -------------------------
+  ES --> IDX_FB
+  ES --> IDX_WZ
+  ES --> IDX_FAL
+  ES --> IDX_OTL
+  ES --> IDX_OTT
+  ES --> IDX_MB
+
 
 ## License
 See `LICENSE`.
