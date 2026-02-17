@@ -1,0 +1,52 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ./ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        limits:
+          cpus: '48.0'
+          memory: 24G
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_KEEP_ALIVE=-1
+      - OLLAMA_NUM_PARALLEL=2
+
+  deepseek-setup:
+    image: ollama/ollama:latest
+    container_name: deepseek-setup
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    entrypoint: /bin/sh
+    command: >
+      -c "echo 'Waiting for Ollama server...';
+      until ollama list > /dev/null 2>&1; do sleep 2; done;
+
+      echo 'Removing old big model if present...';
+      ollama rm deepseek-r1:32b || true;
+
+      echo 'Pulling DeepSeek-R1 14B...';
+      ollama pull deepseek-r1:14b;
+
+      echo 'DeepSeek-R1 14B ready!';
+      ollama list;"
+    depends_on:
+      - ollama
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./webui_data:/app/backend/data
+    depends_on:
+      - ollama
