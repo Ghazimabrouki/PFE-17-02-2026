@@ -192,29 +192,29 @@ flowchart TB
 ```mermaid
 flowchart LR
   %% Suricata pipeline
-  SURI_EVT["Suricata EVE events\n/var/log/suricata/eve.json"] --> FB_SURI["Filebeat suricata module\nmodules.d/suricata.yml"]
-  FB_SURI --> ES_FILEBEAT["Elasticsearch index family\nfilebeat-*"]
+  SURI_EVT["Suricata EVE events /var/log/suricata/eve.json"] --> FB_SURI["Filebeat suricata module modules.d/suricata.yml"]
+  FB_SURI --> ES_FILEBEAT["Elasticsearch index family filebeat-*"]
 
   %% Wazuh pipeline
-  WAZUH_ALERT["Wazuh manager alerts"] --> FB_WAZUH["Filebeat wazuh module\n+wazuh-template.json"]
-  FB_WAZUH --> ES_WAZUH["Elasticsearch index family\nwazuh-alerts-*"]
+  WAZUH_ALERT["Wazuh manager alerts"] --> FB_WAZUH["Filebeat wazuh module +wazuh-template.json"]
+  FB_WAZUH --> ES_WAZUH["Elasticsearch index family wazuh-alerts-*"]
 
   %% Falco pipeline
-  FALCO_EVT["Falco syscall/rule events\njson_output + http_output"] --> FSK_IN["Falcosidekick :2801"]
-  FSK_IN --> ES_FALCO["Elasticsearch index family\nfalco-events-*"]
+  FALCO_EVT["Falco syscall/rule events json_output + http_output"] --> FSK_IN["Falcosidekick :2801"]
+  FSK_IN --> ES_FALCO["Elasticsearch index family falco-events-*"]
 
   %% OTel pipeline
-  OTLP_IN_G["OTLP gRPC :4317"] --> OTEL_PIPE["OTel pipelines\nreceivers: otlp\nprocessor: batch"]
+  OTLP_IN_G["OTLP gRPC :4317"] --> OTEL_PIPE["OTel pipelines receivers: otlp processor: batch"]
   OTLP_IN_H["OTLP HTTP :4318"] --> OTEL_PIPE
-  OTEL_PIPE --> ES_OTEL_LOGS["Elasticsearch index family\notel-logs-*"]
-  OTEL_PIPE --> ES_OTEL_TRACES["Elasticsearch index family\notel-traces-*"]
+  OTEL_PIPE --> ES_OTEL_LOGS["Elasticsearch index family otel-logs-*"]
+  OTEL_PIPE --> ES_OTEL_TRACES["Elasticsearch index family otel-traces-*"]
 
   %% Metricbeat pipeline
-  HOST_MET["Host metrics\nCPU/RAM/Disk/Network/Processes"] --> MB_SYS["Metricbeat system module"]
+  HOST_MET["Host metrics CPU/RAM/Disk/Network/Processes"] --> MB_SYS["Metricbeat system module"]
   OTEL_PROM["OTel /metrics :8888"] --> MB_PROM["Metricbeat prometheus module"]
   MB_SYS --> MB_OUT["Metricbeat output.elasticsearch"]
   MB_PROM --> MB_OUT
-  MB_OUT --> ES_MB["Elasticsearch index family\nmetricbeat-*"]
+  MB_OUT --> ES_MB["Elasticsearch index family metricbeat-*"]
 
   %% Search/visualization sink
   ES_FILEBEAT --> KIBANA["Kibana Discover/Dashboards"]
@@ -229,32 +229,53 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  SIEM_CFG["siem_setup.sh creates /etc/filebeat/filebeat.yml\nwith output.elasticsearch hosts/user/password\nand setup.kibana host"]
-  FALCO_PARSE["falco_setup.sh parses /etc/filebeat/filebeat.yml\n(if OPENSEARCH_* env not set)"]
-  OTEL_PARSE["otel_setup.sh parses /etc/filebeat/filebeat.yml\n(if OPENSEARCH_* env not set)"]
-  MB_PARSE["machine_metrics_setup.sh parses /etc/filebeat/filebeat.yml\nfor ES/Kibana endpoints + creds"]
+  SIEM_CFG["siem_setup.sh creates /etc/filebeat/filebeat.yml with output.elasticsearch hosts/user/password and setup.kibana host"]
+  FALCO_PARSE["falco_setup.sh parses /etc/filebeat/filebeat.yml (if OPENSEARCH_* env not set)"]
+  OTEL_PARSE["otel_setup.sh parses /etc/filebeat/filebeat.yml (if OPENSEARCH_* env not set)"]
+  MB_PARSE["machine_metrics_setup.sh parses /etc/filebeat/filebeat.yml for ES/Kibana endpoints + creds"]
 
   SIEM_CFG --> FALCO_PARSE
   SIEM_CFG --> OTEL_PARSE
   SIEM_CFG --> MB_PARSE
 
-  ENV_OVERRIDE["Optional env override:\nOPENSEARCH_URL / OPENSEARCH_USERNAME / OPENSEARCH_PASSWORD"] --> FALCO_PARSE
+  ENV_OVERRIDE["Optional env override: OPENSEARCH_URL / OPENSEARCH_USERNAME / OPENSEARCH_PASSWORD"] --> FALCO_PARSE
   ENV_OVERRIDE --> OTEL_PARSE
 
-  FALCO_PARSE --> FALCO_DEPLOY["/opt/falco/docker-compose.yml\nELASTICSEARCH_* env for Falcosidekick"]
-  OTEL_PARSE --> OTEL_DEPLOY["/opt/otel/.env + otel-collector-config.yaml\nelasticsearch exporters"]
-  MB_PARSE --> MB_CFG["/etc/metricbeat/metricbeat.yml\noutput.elasticsearch + setup.kibana"]
+  FALCO_PARSE --> FALCO_DEPLOY["/opt/falco/docker-compose.yml ELASTICSEARCH_* env for Falcosidekick"]
+  OTEL_PARSE --> OTEL_DEPLOY["/opt/otel/.env + otel-collector-config.yaml elasticsearch exporters"]
+  MB_PARSE --> MB_CFG["/etc/metricbeat/metricbeat.yml output.elasticsearch + setup.kibana"]
+```
+
+## 3) Control-Plane and Credential/Config Dependency Flow
+
+```mermaid
+flowchart TD
+  SIEM_CFG["siem_setup.sh creates /etc/filebeat/filebeat.yml with output.elasticsearch hosts/user/password and setup.kibana host"]
+  FALCO_PARSE["falco_setup.sh parses /etc/filebeat/filebeat.yml (if OPENSEARCH_* env not set)"]
+  OTEL_PARSE["otel_setup.sh parses /etc/filebeat/filebeat.yml (if OPENSEARCH_* env not set)"]
+  MB_PARSE["machine_metrics_setup.sh parses /etc/filebeat/filebeat.yml for ES/Kibana endpoints + creds"]
+
+  SIEM_CFG --> FALCO_PARSE
+  SIEM_CFG --> OTEL_PARSE
+  SIEM_CFG --> MB_PARSE
+
+  ENV_OVERRIDE["Optional env override: OPENSEARCH_URL / OPENSEARCH_USERNAME / OPENSEARCH_PASSWORD"] --> FALCO_PARSE
+  ENV_OVERRIDE --> OTEL_PARSE
+
+  FALCO_PARSE --> FALCO_DEPLOY["/opt/falco/docker-compose.yml ELASTICSEARCH_* env for Falcosidekick"]
+  OTEL_PARSE --> OTEL_DEPLOY["/opt/otel/.env + otel-collector-config.yaml elasticsearch exporters"]
+  MB_PARSE --> MB_CFG["/etc/metricbeat/metricbeat.yml output.elasticsearch + setup.kibana"]
 ```
 
 ## 4) Installation/Startup Dependency Graph
 
 ```mermaid
 flowchart LR
-  A["1. SIEM setup\n(Elasticsearch + Kibana + Filebeat)"] --> B["2. Suricata setup\n(Filebeat suricata module)"]
-  A --> C["3. Wazuh setup\n(Filebeat wazuh module + Kibana plugin)"]
-  A --> D["4. Falco setup\n(needs backend creds)"]
-  A --> E["5. OpenTelemetry setup\n(needs backend creds)"]
-  A --> F["6. Metricbeat setup\n(reuses Filebeat backend config)"]
+  A["1. SIEM setup (Elasticsearch + Kibana + Filebeat)"] --> B["2. Suricata setup (Filebeat suricata module)"]
+  A --> C["3. Wazuh setup (Filebeat wazuh module + Kibana plugin)"]
+  A --> D["4. Falco setup (needs backend creds)"]
+  A --> E["5. OpenTelemetry setup (needs backend creds)"]
+  A --> F["6. Metricbeat setup (reuses Filebeat backend config)"]
 ```
 
 ## 5) Port-Level Interaction Map
