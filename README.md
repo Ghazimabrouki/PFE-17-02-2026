@@ -246,27 +246,6 @@ flowchart TD
   MB_PARSE --> MB_CFG["/etc/metricbeat/metricbeat.yml output.elasticsearch + setup.kibana"]
 ```
 
-## 3) Control-Plane and Credential/Config Dependency Flow
-
-```mermaid
-flowchart TD
-  SIEM_CFG["siem_setup.sh creates /etc/filebeat/filebeat.yml with output.elasticsearch hosts/user/password and setup.kibana host"]
-  FALCO_PARSE["falco_setup.sh parses /etc/filebeat/filebeat.yml (if OPENSEARCH_* env not set)"]
-  OTEL_PARSE["otel_setup.sh parses /etc/filebeat/filebeat.yml (if OPENSEARCH_* env not set)"]
-  MB_PARSE["machine_metrics_setup.sh parses /etc/filebeat/filebeat.yml for ES/Kibana endpoints + creds"]
-
-  SIEM_CFG --> FALCO_PARSE
-  SIEM_CFG --> OTEL_PARSE
-  SIEM_CFG --> MB_PARSE
-
-  ENV_OVERRIDE["Optional env override: OPENSEARCH_URL / OPENSEARCH_USERNAME / OPENSEARCH_PASSWORD"] --> FALCO_PARSE
-  ENV_OVERRIDE --> OTEL_PARSE
-
-  FALCO_PARSE --> FALCO_DEPLOY["/opt/falco/docker-compose.yml ELASTICSEARCH_* env for Falcosidekick"]
-  OTEL_PARSE --> OTEL_DEPLOY["/opt/otel/.env + otel-collector-config.yaml elasticsearch exporters"]
-  MB_PARSE --> MB_CFG["/etc/metricbeat/metricbeat.yml output.elasticsearch + setup.kibana"]
-```
-
 ## 4) Installation/Startup Dependency Graph
 
 ```mermaid
