@@ -689,6 +689,7 @@ If not set, scripts attempt to parse:
 
 
 ```mermaid
+
 flowchart LR
   %% =========================================================
   %% COMPLETE SOC PLATFORM — ALL-IN-ONE (Installer + Runtime + Data Flow)
@@ -815,8 +816,7 @@ flowchart LR
   ES --> IDX_OTL
   ES --> IDX_OTT
   ES --> IDX_MB
----
-
+```
 
 
 
@@ -834,7 +834,7 @@ See `LICENSE`.
 - Falcosidekick — Falco Security
 - OpenTelemetry — OpenTelemetry Project (CNCF)
 
----
+
 
 ## About the Author
 
