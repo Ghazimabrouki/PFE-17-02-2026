@@ -220,8 +220,7 @@ sudo ./suricata_setup.sh
 sudo ./wazuh_setup.sh
 sudo ./falco_setup.sh
 sudo ./otel_setup.sh
-# If you add a metricbeat script:
-# sudo ./metricbeat_setup.sh
+sudo ./metricbeat_setup.sh
 ```
 
 ---
