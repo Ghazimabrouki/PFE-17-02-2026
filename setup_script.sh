@@ -106,10 +106,12 @@ welcome_message() {
   echo "4. Runtime Security (Falco)"
   echo "5. Observability (OpenTelemetry)"
   echo "6. Machine Metrics (Metricbeat)"
+  echo "7. Prometheus Metrics Pipeline (Prometheus + node_exporter + PromEL -> Elasticsearch)"
   echo ""
   echo "The SIEM will be installed with Elasticsearch version 7.17.13 and Wazuh version 4.5, as they were compatible during the script creation."
   echo "Falco and OpenTelemetry will run as Docker containers and send data to Elasticsearch."
   echo "Metricbeat will ship host (machine) metrics (CPU/RAM/Disk/Network/Processes) to Elasticsearch."
+  echo "Prometheus pipeline is containerized and can run alongside existing agents (no deletion/disable by default)."
 }
 
 # Function to install SIEM and display a message with figlet and lolcat
@@ -183,6 +185,29 @@ install_machine_metrics() {
   read -p "Press Enter to continue..."
 }
 
+# Function to install Prometheus metrics pipeline (Prometheus + node_exporter + PromEL)
+# NOTE: This does NOT disable/remove Metricbeat or OpenTelemetry (runs alongside by default).
+install_prometheus_metrics() {
+  check_and_install_lolcat
+  check_and_install_docker
+  figlet "Starting Prometheus" | lolcat
+
+  # Prometheus setup relies on Filebeat config to discover ES/Kibana connection.
+  if [[ ! -f /etc/filebeat/filebeat.yml ]]; then
+    echo -e "${YELLOW}Skipping Prometheus pipeline: /etc/filebeat/filebeat.yml not found.${NC}"
+    echo -e "${YELLOW}Tip: Install SIEM/Filebeat first, then rerun Prometheus setup.${NC}"
+    read -p "Press Enter to continue..."
+    return 0
+  fi
+
+  chmod +x prometheus_setup.sh
+  # Preserve existing agents/services (requested)
+  PRESERVE_EXISTING=true REPLACE_EXISTING=0 ./prometheus_setup.sh
+
+  figlet "Prometheus Completed" | lolcat
+  read -p "Press Enter to continue..."
+}
+
 # Function to check system requirements
 check_system_requirements() {
   total_ram=$(free -m | awk '/^Mem:/{print $2}')
@@ -248,6 +273,11 @@ main() {
     install_machine_metrics
   fi
 
+  read -p "Do you want to install Prometheus Metrics Pipeline (Prometheus + node_exporter + PromEL)? (y/n): " install_prometheus_choice
+  if [ "$install_prometheus_choice" == "y" ]; then
+    install_prometheus_metrics
+  fi
+
   figlet "All done!" | lolcat
   echo -e "${GREEN}============================================${NC}"
   echo -e "${GREEN}SOC Setup Complete!${NC}"
@@ -264,6 +294,7 @@ main() {
   [ "$install_falco_choice" == "y" ] && echo "docker ps | grep falco"
   [ "$install_otel_choice" == "y" ] && echo "docker ps | grep otel"
   [ "$install_machine_metrics_choice" == "y" ] && echo "systemctl status metricbeat"
+  [ "${install_prometheus_choice:-n}" == "y" ] && echo "docker ps | egrep 'soc-(prometheus|node-exporter|promel)'"
 }
 
 # Execute the main function
