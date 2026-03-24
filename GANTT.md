@@ -34,5 +34,5 @@ gantt
     Tableaux de bord et configuration des alertes                :         t9, 2026-03-16, 15d
 
     section 10. Tests & Documentation
-    Tests, optimisation, documentation et préparation démo       :         t10, 2026-03-25, 20d
+    Tests, optimisation, documentation et préparation démo       :         t10, 2026-03-25, 98d
 ```
