@@ -424,6 +424,31 @@ The platform is installed in dependency order:
 5. **OpenTelemetry** (observability)
 6. **Metricbeat** (system + Prometheus metrics) *(optional/recommended)*
 
+## Project Gantt Diagram (Aligned with Current Structure)
+
+```mermaid
+gantt
+    title PFE SOC Platform Delivery Plan (Ends June 30, 2026)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d/%m
+
+    section Foundation
+    Requirements and architecture validation            :done, req, 2026-02-17, 2026-03-02
+    SIEM core integration (Elasticsearch/Kibana/Filebeat) :active, siem, 2026-03-03, 2026-04-01
+
+    section Detection Layers
+    Suricata (network detection)                       :suri, 2026-04-02, 2026-04-17
+    Wazuh Manager (host detection)                     :wazuh, 2026-04-18, 2026-05-03
+    Falco + Falcosidekick (runtime detection)          :falco, 2026-05-04, 2026-05-19
+
+    section Observability & Metrics
+    OpenTelemetry Collector pipeline                   :otel, 2026-05-20, 2026-06-05
+    Metricbeat system + Prometheus metrics             :metric, 2026-06-06, 2026-06-15
+
+    section Validation & Delivery
+    End-to-end tests, docs finalization, handover      :crit, final, 2026-06-16, 2026-06-30
+```
+
 ### Run a single component
 ```bash
 sudo ./siem_setup.sh
